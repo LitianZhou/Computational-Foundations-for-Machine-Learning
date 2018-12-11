@@ -103,6 +103,8 @@ if __name__ == '__main__':
     
     
     sepa_line_y = np.dot(weights[1:], row) + weights[0]
+    # x1 is two choosen points, and x2 is calculated by the sep_line_y:
+    # W0 + X1W1 + X2W2 = 0
     x1= np.array([1, 10])
     x2 = (-weights[0] - weights[1]*x1)/weights[2]
     plt.plot(x1, x2)
