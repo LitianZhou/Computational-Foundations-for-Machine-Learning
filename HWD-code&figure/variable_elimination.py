@@ -436,19 +436,73 @@ def get_bfs_ordering(Factors, QueryVar):
 
 def _collapse(factors, elem_var, QueryVar):
     '''Remove all factors that mention a variable (elem_var) and add a new factor representing the collapsed quantity'''
+    input_factor_len = len(factors)
     f_eliminated = []
-    f_remaining = []
-    for f in factors:
+    fac = list(factors)
+    for f in fac:
         iselem = False
         for s in f.get_scope():
             if s.name == elem_var.name:
                 iselem = True
+                break
         if iselem:
             f_eliminated.append(f)
-        else:
-            f_remaining.append(f)
-    factors = f_remaining
-    factors.append()
+            factors.remove(f)
+
+    # Set the factor name and scope
+    newFactorName = "collapse_elemvar_" + str(elem_var.name) + "_qvar_" + str(QueryVar.name)
+    newFactorScope = []
+    for f in f_eliminated:
+        # check for duplicated vars
+        for v in f.get_scope():
+            is_existed = False
+            for k in newFactorScope:
+                if k.name == v.name:
+                    is_existed = True
+            if not is_existed:
+                newFactorScope.append(v)
+
+    # Remove elem_var from the scope of the newFactor
+    newFactorScope.remove(elem_var)
+
+    # Create the newFactor
+    newfactor = Factor(newFactorName, newFactorScope)
+
+    ## construct probability table
+    # construct all possible combinations of variables, stored in var_table
+    var_table = []
+    temp = []
+    for var in newFactorScope:
+        temp = list(var_table)
+        var_table = []
+        for dom in var.domain():
+            if len(temp) == 0:
+                var_table.append([dom])
+            else:
+                var_table.extend([x + [dom] for x in temp])
+
+    # compute probabilities
+    for v in var_table:
+        p = 0.0
+        for v_e in elem_var.domain():
+            p_temp = 1.0
+            for f in f_eliminated:
+                f_input = []
+                for s in f.get_scope():
+                    if elem_var.name == s.name:
+                        f_input.append(v_e)
+                    else:
+                        for idx, gv in enumerate(newFactorScope):
+                            if gv.name == s.name:
+                                f_input.append(v[idx])
+                p_temp *= f.get_value(f_input)
+            p += p_temp
+        # add value to factor
+        newfactor.add_values([v + [p]])
+    # new factor list
+    factors.append(newfactor)
+    assert len(factors) == input_factor_len - len(f_eliminated) + 1
+    assert newFactorScope == factors[-1].get_scope()
 
 def compute_prob(NetFactors):
 
